@@ -29,9 +29,9 @@ import static net.kyori.adventure.text.format.NamedTextColor.RED;
 
 public final class Plugin extends JavaPlugin implements Listener {
 
-    private static final Path configActivePath = Path.of("plugins", "autosort", "active.txt");
+    private static final Path configActives = Path.of("plugins", "autosort", "active.txt");
 
-    private final Set<UUID> active = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> actives = ConcurrentHashMap.newKeySet();
 
     private final Map<Material, Integer> materialOrder = new HashMap<>();
 
@@ -70,11 +70,11 @@ public final class Plugin extends JavaPlugin implements Listener {
 
         UUID uuid = player.getUniqueId();
         var message = text("Sorting ");
-        if (active.contains(uuid)) {
-            active.remove(uuid);
+        if (actives.contains(uuid)) {
+            actives.remove(uuid);
             message = message.append(text("disabled").color(RED));
         } else {
-            active.add(uuid);
+            actives.add(uuid);
             message = message.append(text("enabled").color(GREEN))
                     .append(text(" for: " + inventories.stream()
                             .map(InventoryType::defaultTitle)
@@ -84,30 +84,13 @@ public final class Plugin extends JavaPlugin implements Listener {
         }
         player.sendMessage(message);
 
-        configActivePath.getParent().toFile().mkdirs();
-        try {
-            Files.writeString(configActivePath, active.stream().map(UUID::toString).collect(Collectors.joining(System.lineSeparator())), WRITE, CREATE, TRUNCATE_EXISTING);
-        } catch (Exception ex) {
-            getLogger().warning(ex.toString());
-        }
+        saveActives();
 
         return true;
     };
 
     @Override
     public void onEnable() {
-
-        try {
-            if (configActivePath.toFile().exists()) {
-                var lines = Files.readAllLines(configActivePath);
-                for (String line : lines) {
-                    if (line.isBlank()) continue;
-                    active.add(UUID.fromString(line));
-                }
-            }
-        } catch (Exception ex) {
-            getLogger().warning(ex.toString());
-        }
 
         // Index material registry order
         int n = 0;
@@ -119,11 +102,14 @@ public final class Plugin extends JavaPlugin implements Listener {
         cmd.setExecutor(toggle);
         cmd.setTabCompleter((sender, command, label, args) -> Collections.emptyList());
 
+        loadActives();
+
         getServer().getPluginManager().registerEvents(this, this);
     }
 
     @Override
     public void onDisable() {
+        actives.clear();
         materialOrder.clear();
     }
 
@@ -139,7 +125,7 @@ public final class Plugin extends JavaPlugin implements Listener {
 
     private void sort(Inventory inventory, HumanEntity player) {
         if (!inventories.contains(inventory.getType())) return;
-        if (!active.contains(player.getUniqueId())) return;
+        if (!actives.contains(player.getUniqueId())) return;
 
         boolean hasViewers = inventory.getViewers().stream()
                 .anyMatch(viewer -> !viewer.getUniqueId().equals(player.getUniqueId()));
@@ -158,6 +144,32 @@ public final class Plugin extends JavaPlugin implements Listener {
         for (ItemStack item : items) {
             // this will also compress/merge stacks
             inventory.addItem(item);
+        }
+    }
+
+    private void loadActives() {
+        try {
+            if (configActives.toFile().exists()) {
+                var lines = Files.readAllLines(configActives);
+                for (String line : lines) {
+                    if (line.isBlank()) continue;
+                    actives.add(UUID.fromString(line));
+                }
+            }
+        } catch (Exception ex) {
+            getLogger().warning(ex.toString());
+        }
+    }
+
+    private void saveActives() {
+        configActives.getParent().toFile().mkdirs();
+        try {
+            Files.writeString(configActives, actives.stream()
+                            .map(UUID::toString)
+                            .collect(Collectors.joining(System.lineSeparator())),
+                    WRITE, CREATE, TRUNCATE_EXISTING);
+        } catch (Exception ex) {
+            getLogger().warning(ex.toString());
         }
     }
 }
