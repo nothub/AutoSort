@@ -1,5 +1,6 @@
 package lol.hub.autosort;
 
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.Registry;
 import org.bukkit.command.CommandExecutor;
@@ -68,15 +69,20 @@ public final class Plugin extends JavaPlugin implements Listener {
         }
 
         UUID uuid = player.getUniqueId();
+        var message = text("Sorting ");
         if (active.contains(uuid)) {
             active.remove(uuid);
-            player.sendMessage(text("Automatic sorting ")
-                    .append(text("disabled").color(RED)));
+            message = message.append(text("disabled").color(RED));
         } else {
             active.add(uuid);
-            player.sendMessage(text("Automatic sorting ")
-                    .append(text("enabled").color(GREEN)));
+            message = message.append(text("enabled").color(GREEN))
+                    .append(text(" for: " + inventories.stream()
+                            .map(InventoryType::defaultTitle)
+                            .map(comp -> PlainTextComponentSerializer.plainText().serialize(comp))
+                            .sorted()
+                            .collect(Collectors.joining(", "))));
         }
+        player.sendMessage(message);
 
         configActivePath.getParent().toFile().mkdirs();
         try {
