@@ -15,14 +15,20 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
+import static java.nio.file.StandardOpenOption.*;
 import static net.kyori.adventure.text.Component.text;
 import static net.kyori.adventure.text.format.NamedTextColor.GREEN;
 import static net.kyori.adventure.text.format.NamedTextColor.RED;
 
 public final class Plugin extends JavaPlugin implements Listener {
+
+    private static final Path configActivePath = Path.of("plugins", "autosort", "active.txt");
 
     private final Set<UUID> active = ConcurrentHashMap.newKeySet();
 
@@ -61,7 +67,7 @@ public final class Plugin extends JavaPlugin implements Listener {
             return true;
         }
 
-        var uuid = player.getUniqueId();
+        UUID uuid = player.getUniqueId();
         if (active.contains(uuid)) {
             active.remove(uuid);
             player.sendMessage(text("Automatic sorting ")
@@ -72,11 +78,30 @@ public final class Plugin extends JavaPlugin implements Listener {
                     .append(text("enabled").color(GREEN)));
         }
 
+        configActivePath.getParent().toFile().mkdirs();
+        try {
+            Files.writeString(configActivePath, active.stream().map(UUID::toString).collect(Collectors.joining(System.lineSeparator())), WRITE, CREATE, TRUNCATE_EXISTING);
+        } catch (Exception ex) {
+            getLogger().warning(ex.toString());
+        }
+
         return true;
     };
 
     @Override
     public void onEnable() {
+
+        try {
+            if (configActivePath.toFile().exists()) {
+                var lines = Files.readAllLines(configActivePath);
+                for (String line : lines) {
+                    if (line.isBlank()) continue;
+                    active.add(UUID.fromString(line));
+                }
+            }
+        } catch (Exception ex) {
+            getLogger().warning(ex.toString());
+        }
 
         // Index material registry order
         int n = 0;
