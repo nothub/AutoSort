@@ -27,3 +27,12 @@ jobs:
         with:
           body: 'Release generated at commit: ${{ github.sha }}'
           files: 'build/dist/*.jar'
+
+      - uses: Kir-Antipov/mc-publish@v3
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          modrinth-id: 'FXR5nhTz'
+          modrinth-token: '${{ secrets.MODRINTH_TOKEN }}'
+          files: 'build/dist/*.jar'
+          loaders: 'paper'
+          game-versions: '>=1.20 <1.21'
