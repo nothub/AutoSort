@@ -1,7 +1,7 @@
 name: AutoSort
 version: '@mod_version@'
 main: lol.hub.autosort.Plugin
-api-version: '1.20'
+api-version: '1.21'
 author: nothub
 description: Tidy up them containers
 website: https://github.com/nothub/AutoSort
