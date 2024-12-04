@@ -2,6 +2,9 @@
 
 Tidy up them containers
 
+[Modrinth](https://modrinth.com/mod/autosort)  
+[GitHub](https://github.com/nothub/autosort/releases)
+
 ---
 
 ### Order Priority
