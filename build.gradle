@@ -1,6 +1,5 @@
 plugins {
     id 'java'
-    id 'xyz.jpenilla.run-paper' version '3.0.0'
 }
 
 group = 'lol.hub'
@@ -44,13 +43,3 @@ def artifactName(String type, String fileExt) {
 
 jar.archiveFileName.set(artifactName('paper', 'jar'))
 jar.destinationDirectory.set(layout.buildDirectory.dir('dist'))
-
-tasks {
-    runServer {
-        runDirectory = layout.projectDirectory.dir('run')
-        minecraftVersion(project.minecraft_version)
-        systemProperty('com.mojang.eula.agree', 'true')
-        systemProperty('Paper.skipServerPropertiesComments', 'true')
-        dependsOn('build')
-    }
-}
