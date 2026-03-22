@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id "xyz.jpenilla.run-paper" version "3.0.2"
 }
 
 group = 'lol.hub'
@@ -30,6 +31,13 @@ tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
 }
 
+tasks {
+    runServer {
+        minecraftVersion("${project.minecraft_version}")
+        jvmArgs("-Dcom.mojang.eula.agree=true", "-DPaper.skipServerPropertiesComments=true")
+    }
+}
+
 processResources {
     filteringCharset "UTF-8"
     filesMatching("plugin.yml") {
@@ -37,9 +45,5 @@ processResources {
     }
 }
 
-def artifactName(String type, String fileExt) {
-    return "${project.name.toLowerCase()}-${project.version}+${project.minecraft_version}-${type}.${fileExt}"
-}
-
-jar.archiveFileName.set(artifactName('paper', 'jar'))
+jar.archiveFileName.set("${project.name.toLowerCase()}-${project.version}+${project.minecraft_version}-paper.jar")
 jar.destinationDirectory.set(layout.buildDirectory.dir('dist'))
