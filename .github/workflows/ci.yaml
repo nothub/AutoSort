@@ -30,7 +30,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: echo "MC_API_VERSION=$(cat src/main/resources/plugin.yml | yq -r ".[\"api-version\"]")" >> $GITHUB_ENV
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           name: '${{ github.ref_name }} (${{ env.MINECRAFT_VERSION }})'
