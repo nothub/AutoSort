@@ -1,10 +1,10 @@
 plugins {
-    id 'java'
+    id 'java-library'
     id "xyz.jpenilla.run-paper" version "3.0.2"
 }
 
 group = 'lol.hub'
-version = '0.1.12'
+version = project.plugin_version
 
 repositories {
     mavenCentral()
@@ -20,14 +20,14 @@ repositories {
 }
 
 dependencies {
-    compileOnly group: 'io.papermc.paper', name: 'paper-api', version: "${project.minecraft_version}-R0.1-SNAPSHOT"
+    compileOnly group: 'io.papermc.paper', name: 'paper-api', version: "${project.minecraft_version}.build.+"
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    toolchain.languageVersion = JavaLanguageVersion.of(project.java_version)
 }
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = 21
+    it.options.release = Integer.parseInt(project.java_version)
     it.options.encoding = 'UTF-8'
 }
 
@@ -42,6 +42,7 @@ processResources {
     filteringCharset "UTF-8"
     filesMatching("plugin.yml") {
         filter { line -> line.replace("@mod_version@", project.version) }
+        filter { line -> line.replace("@minecraft_version@", minecraft_version) }
     }
 }
 

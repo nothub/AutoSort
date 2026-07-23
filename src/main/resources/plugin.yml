@@ -1,10 +1,11 @@
-name: AutoSort
+name: 'AutoSort'
 version: '@mod_version@'
-main: lol.hub.autosort.Plugin
-api-version: '1.21'
-author: nothub
-description: Tidy up them containers
-website: https://github.com/nothub/AutoSort
+api-version: '@minecraft_version@'
+main: 'lol.hub.autosort.Plugin'
+description: 'Tidy up them containers'
+website: 'https://github.com/nothub/AutoSort'
+authors: [ 'nothub' ]
+contributors: [ ]
 
 commands:
   autosort:
