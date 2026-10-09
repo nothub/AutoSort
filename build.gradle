@@ -39,10 +39,14 @@ tasks {
 }
 
 processResources {
+    def modVersion = version
+    def mcVersion = minecraft_version
+    inputs.property('modVersion', modVersion)
+    inputs.property('mcVersion', mcVersion)
     filteringCharset "UTF-8"
     filesMatching("plugin.yml") {
-        filter { line -> line.replace("@mod_version@", project.version) }
-        filter { line -> line.replace("@minecraft_version@", minecraft_version) }
+        filter { line -> line.replace("@mod_version@", modVersion) }
+        filter { line -> line.replace("@minecraft_version@", mcVersion) }
     }
 }
 
