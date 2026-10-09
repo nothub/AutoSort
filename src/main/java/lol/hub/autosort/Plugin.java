@@ -3,16 +3,21 @@ package lol.hub.autosort;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.Registry;
+import org.bukkit.block.Container;
+import org.bukkit.block.DoubleChest;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.entity.ChestBoat;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.minecart.StorageMinecart;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -126,6 +131,7 @@ public final class Plugin extends JavaPlugin implements Listener {
 
     private void sort(Inventory inventory, HumanEntity player) {
         if (!inventories.contains(inventory.getType())) return;
+        if (!isWorldStorage(inventory, player)) return;
         if (!actives.contains(player.getUniqueId())) return;
 
         boolean hasViewers = inventory.getViewers().stream()
@@ -146,6 +152,20 @@ public final class Plugin extends JavaPlugin implements Listener {
             // this will also compress/merge stacks
             inventory.addItem(item);
         }
+    }
+
+    // Plugin GUIs share inventory types with real containers, but their holder is null,
+    // a player, or a plugin-owned class. Only real storage has a block or storage vehicle.
+    private boolean isWorldStorage(Inventory inventory, HumanEntity player) {
+        if (inventory.getType() == InventoryType.ENDER_CHEST) {
+            // A GUI of this type can also use the player as holder, so compare the inventory itself.
+            return inventory.equals(player.getEnderChest());
+        }
+        InventoryHolder holder = inventory.getHolder(false);
+        return holder instanceof Container
+                || holder instanceof DoubleChest
+                || holder instanceof StorageMinecart
+                || holder instanceof ChestBoat;
     }
 
     private void loadActives() {
