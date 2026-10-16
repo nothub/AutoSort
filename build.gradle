@@ -17,10 +17,35 @@ repositories {
             includeGroup 'net.md-5'
         }
     }
+    // TestUtils ships as GitHub release assets. Gradle sends the `+` of the plugin jar's name as is;
+    // a `%2B` would go out as `%252B` and 404. Exclusive, so no other repository can serve `lol.hub`.
+    exclusiveContent {
+        forRepository {
+            ivy {
+                url = 'https://github.com/nothub/TestUtils/releases/download'
+                patternLayout { artifact 'v[revision]/[module]-[revision](+[classifier]).[ext]' }
+                metadataSources { artifact() }
+            }
+        }
+        filter { includeGroup 'lol.hub' }
+    }
+}
+
+configurations {
+    testutilsPlugin
+    testutilsPin
 }
 
 dependencies {
     compileOnly group: 'io.papermc.paper', name: 'paper-api', version: "${project.minecraft_version}.build.+"
+
+    testImplementation "lol.hub:testutils-library:${project.testutils_version}"
+    testImplementation platform('org.junit:junit-bom:6.1.3')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'com.google.code.gson:gson:2.14.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testutilsPlugin "lol.hub:testutils:${project.testutils_version}:${project.minecraft_version}-paper"
+    testutilsPin "lol.hub:testutils:${project.testutils_version}@properties"
 }
 
 java {
@@ -29,13 +54,6 @@ java {
 tasks.withType(JavaCompile).configureEach {
     it.options.release = Integer.parseInt(project.java_version)
     it.options.encoding = 'UTF-8'
-}
-
-tasks {
-    runServer {
-        minecraftVersion("${project.minecraft_version}")
-        jvmArgs("-Dcom.mojang.eula.agree=true", "-DPaper.skipServerPropertiesComments=true")
-    }
 }
 
 processResources {
@@ -52,3 +70,114 @@ processResources {
 
 jar.archiveFileName.set("${project.name.toLowerCase()}-${project.version}+${project.minecraft_version}-paper.jar")
 jar.destinationDirectory.set(layout.buildDirectory.dir('dist'))
+
+// The Paper build to test on comes from the pin asset of the TestUtils release, so it is known only
+// once that asset is resolved. Call this only from tasks that need Paper: `clean` and `tasks` need no network.
+def pinnedPaper = {
+    def pin = new Properties()
+    configurations.testutilsPin.singleFile.withInputStream { pin.load(it) }
+    if (pin.minecraft_version != project.minecraft_version) {
+        throw new GradleException("TestUtils v${project.testutils_version} targets MC ${pin.minecraft_version}, project is on MC ${project.minecraft_version}")
+    }
+    // TestUtils' own cache path and name, so every build pinned to that Paper build shares one download.
+    def jar = new File(gradle.gradleUserHomeDir, "caches/testutils/paper/paper-${pin.minecraft_version}-${pin.paper_build}.jar")
+    // Paperclip patches into `repo`, shared by every run against this jar.
+    [mc: pin.minecraft_version, build: pin.paper_build, sha256: pin.paper_sha256, jar: jar, repo: new File(jar.parentFile, 'repo')]
+}
+
+// Runs before `test` and `runServer` resolve `testutilsPlugin`: a release for another MC version has no
+// plugin jar under this project's classifier, and the mismatch would otherwise surface as a 404.
+def paperJar = tasks.register('paperJar') {
+    doLast {
+        def paper = pinnedPaper()
+        def sha256Of = { File f ->
+            def digest = java.security.MessageDigest.getInstance('SHA-256')
+            f.withInputStream { stream ->
+                def buffer = new byte[1 << 16]
+                for (int n; (n = stream.read(buffer)) > 0;) digest.update(buffer, 0, n)
+            }
+            digest.digest().encodeHex().toString()
+        }
+        if (paper.jar.isFile() && sha256Of(paper.jar) == paper.sha256) return
+
+        def http = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(30)).followRedirects(java.net.http.HttpClient.Redirect.NORMAL).build()
+        def get = { String url, java.net.http.HttpResponse.BodyHandler handler ->
+            def request = java.net.http.HttpRequest.newBuilder(URI.create(url))
+                    .timeout(java.time.Duration.ofMinutes(10)).header('User-Agent', "${project.name} (https://github.com/nothub/${project.name})").build()
+            def response = http.send(request, handler)
+            if (response.statusCode() != 200) throw new GradleException("GET ${url} answered ${response.statusCode()}")
+            response.body()
+        }
+        def buildInfo = new groovy.json.JsonSlurper().parseText(
+                get("https://fill.papermc.io/v3/projects/paper/versions/${paper.mc}/builds/${paper.build}", java.net.http.HttpResponse.BodyHandlers.ofString()))
+        paper.jar.parentFile.mkdirs()
+        // A unique name per download: two builds fetching at once must not write one file.
+        def part = File.createTempFile(paper.jar.name, '.part', paper.jar.parentFile)
+        try {
+            get(buildInfo.downloads['server:default'].url, java.net.http.HttpResponse.BodyHandlers.ofFile(part.toPath()))
+            if (sha256Of(part) != paper.sha256) {
+                throw new GradleException("paper ${paper.mc} build ${paper.build}: SHA-256 of the download does not match the TestUtils pin")
+            }
+            java.nio.file.Files.move(part.toPath(), paper.jar.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
+        } finally {
+            part.delete()
+        }
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    dependsOn 'jar', paperJar
+    def pluginUnderTest = tasks.named('jar').flatMap { it.archiveFile }
+    def testutilsPlugin = configurations.testutilsPlugin
+    // Jar contents are inputs: a plugin change without `clean` must rerun the suite.
+    inputs.file(pluginUnderTest).withPropertyName('pluginJar')
+    inputs.files(testutilsPlugin).withPropertyName('testutilsJar')
+    doFirst {
+        def paper = pinnedPaper()
+        systemProperty 'testutils.pluginJar', pluginUnderTest.get().asFile.path
+        systemProperty 'testutils.testutilsJar', testutilsPlugin.singleFile.path
+        systemProperty 'testutils.paperJar', paper.jar.path
+        systemProperty 'testutils.paperRepo', paper.repo.path
+    }
+}
+
+// A human joins at localhost, an agent drives the console over RCON. Loopback only, so the
+// fixed password exposes nothing beyond this machine. Written on every launch: run/ outlives the sessions.
+def runServerProperties = [
+        'server-ip'        : '127.0.0.1',
+        'server-port'      : '25565',
+        'online-mode'      : 'false',
+        'white-list'       : 'false',
+        'enforce-whitelist': 'false',
+        'enable-rcon'      : 'true',
+        'rcon.port'        : '25575',
+        'rcon.password'    : 'testutils',
+]
+
+tasks.named('runServer') {
+    minecraftVersion("${project.minecraft_version}")
+    // The same pinned jar the tests boot, so a failing test reproduces on the same build.
+    // Without this run-paper fetches the latest build.
+    dependsOn paperJar
+    serverJar(layout.file(provider { pinnedPaper().jar }))
+    pluginJars(configurations.testutilsPlugin)
+    jvmArgs("-Dcom.mojang.eula.agree=true", "-DPaper.skipServerPropertiesComments=true")
+    // Without a shared bundler repo every run/ directory downloads and patches Paper again.
+    jvmArgumentProviders.add({ ["-DbundlerRepoDir=" + pinnedPaper().repo] } as CommandLineArgumentProvider)
+    doFirst {
+        def file = runDirectory.file('server.properties').get().asFile
+        def written = [] as Set
+        def lines = (file.isFile() ? file.readLines() : []).collect { line ->
+            def key = line.split('=', 2)[0].trim()
+            if (!line.startsWith('#') && runServerProperties.containsKey(key)) {
+                written << key
+                return "${key}=${runServerProperties[key]}".toString()
+            }
+            line
+        }
+        runServerProperties.each { key, value -> if (!(key in written)) lines << "${key}=${value}".toString() }
+        file.parentFile.mkdirs()
+        file.text = lines.join('\n') + '\n'
+    }
+}
