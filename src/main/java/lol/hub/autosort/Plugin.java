@@ -48,11 +48,10 @@ public final class Plugin extends JavaPlugin implements Listener {
             InventoryType.SHULKER_BOX
     );
 
+    // Every material is in the minecraft namespace, and equal stacks merge on re-adding, so neither
+    // namespace nor stack size can change the result.
     private final Comparator<Object> comparator = Comparator
             .comparing(
-                // resource namespace
-                itemStack -> ((ItemStack) itemStack).getType().getKey().getNamespace())
-            .thenComparing(
                 // registry order (material)
                 itemStack -> materialOrder.getOrDefault(
                         ((ItemStack) itemStack).getType(), 0))
@@ -61,11 +60,7 @@ public final class Plugin extends JavaPlugin implements Listener {
                 itemStack -> ((ItemStack) itemStack).getType().getKey().getKey())
             .thenComparing(
                 // meta data
-                itemStack -> ((ItemStack) itemStack).getItemMeta().getAsString())
-            .thenComparing(
-                // stack size
-                itemStack -> ((ItemStack) itemStack).getAmount()
-            );
+                itemStack -> ((ItemStack) itemStack).getItemMeta().getAsString());
 
     private final CommandExecutor toggle = (sender, command, label, args) -> {
 
