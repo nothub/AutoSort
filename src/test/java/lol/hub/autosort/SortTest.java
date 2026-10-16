@@ -42,6 +42,12 @@ class SortTest {
             2, "minecraft:cobblestone x5",
             3, "minecraft:dirt x30"));
 
+    private static final Map<Integer, String> SORTED_WITH_DIAMOND = new TreeMap<>(Map.of(
+            0, "minecraft:diamond x3",
+            1, "minecraft:stick x4",
+            2, "minecraft:cobblestone x5",
+            3, "minecraft:dirt x30"));
+
     @Test
     void sortingOffLeavesTheChestAsPlaced(TestServer server, Area area) {
         Pos chest = placeChest(server, area);
@@ -54,15 +60,29 @@ class SortTest {
     }
 
     @Test
-    void sortingOnSortsAndMergesTheChest(TestServer server, Area area) {
+    void openingSortsAndMergesTheChest(TestServer server, Area area) {
         Pos chest = placeChest(server, area);
         Bot bot = area.bot();
         assertTrue(bot.run("autosort"), "autosort command");
 
         bot.open(chest);
-        bot.close();
 
         assertEquals(SORTED, layout(server.container(chest)));
+        bot.close();
+    }
+
+    @Test
+    void closingSortsWhatChangedWhileOpen(TestServer server, Area area) {
+        Pos chest = placeChest(server, area);
+        Bot bot = area.bot();
+        assertTrue(bot.run("autosort"), "autosort command");
+        bot.open(chest);
+        server.command("item replace block " + chest + " container.26 with minecraft:diamond 1");
+        assertEquals("minecraft:diamond x1", layout(server.container(chest)).get(26), "diamond added while open");
+
+        bot.close();
+
+        assertEquals(SORTED_WITH_DIAMOND, layout(server.container(chest)));
     }
 
     private static Pos placeChest(TestServer server, Area area) {
