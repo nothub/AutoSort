@@ -48,6 +48,21 @@ class SortTest {
             2, "minecraft:cobblestone x5",
             3, "minecraft:dirt x30"));
 
+    // Swords don't stack, so their order survives the merge. Placed out of order, and not reversed,
+    // so a sort that keeps the placed order fails too.
+    private static final String SWORDS = "[{Slot:0b,id:\"minecraft:iron_sword\",count:1,components:{\"minecraft:damage\":3}},"
+            + "{Slot:4b,id:\"minecraft:iron_sword\",count:1,components:{\"minecraft:damage\":2}},"
+            + "{Slot:8b,id:\"minecraft:iron_sword\",count:1},"
+            + "{Slot:13b,id:\"minecraft:iron_sword\",count:1,components:{\"minecraft:damage\":1}}]";
+
+    // AutoSort compares the metadata as text: {"minecraft:damage":1} and so on, {} without any. '}' sorts
+    // after '"', so the plain sword comes last. Single-digit damage keeps text and number order the same.
+    private static final Map<Integer, String> SWORDS_SORTED = new TreeMap<>(Map.of(
+            0, "minecraft:iron_sword damage 1",
+            1, "minecraft:iron_sword damage 2",
+            2, "minecraft:iron_sword damage 3",
+            3, "minecraft:iron_sword damage 0"));
+
     @Test
     void sortingOffLeavesTheChestAsPlaced(TestServer server, Area area) {
         Pos chest = placeChest(server, area);
@@ -83,6 +98,22 @@ class SortTest {
         bot.close();
 
         assertEquals(SORTED_WITH_DIAMOND, layout(server.container(chest)));
+    }
+
+    @Test
+    void openingOrdersOneItemTypeByItsMetadata(TestServer server, Area area) {
+        Pos chest = area.at(6, 1, 6);
+        server.command("setblock " + chest + " chest{Items:" + SWORDS + "}");
+        assertEquals(4, server.container(chest).slots().size(), "swords before the bot opens the chest");
+        Bot bot = area.bot();
+        assertTrue(bot.run("autosort"), "autosort command");
+
+        bot.open(chest);
+
+        Map<Integer, String> swords = new TreeMap<>();
+        server.container(chest).slots().forEach((slot, item) -> swords.put(slot, item.id() + " damage " + item.damage()));
+        assertEquals(SWORDS_SORTED, swords);
+        bot.close();
     }
 
     private static Pos placeChest(TestServer server, Area area) {
