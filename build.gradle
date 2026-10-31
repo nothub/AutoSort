@@ -42,7 +42,7 @@ dependencies {
     testImplementation "lol.hub:testutils-library:${project.testutils_version}"
     testImplementation platform('org.junit:junit-bom:6.1.3')
     testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'com.google.code.gson:gson:2.14.0'
+    testImplementation 'com.google.code.gson:gson:2.15.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testutilsPlugin "lol.hub:testutils:${project.testutils_version}:${project.minecraft_version}-paper"
     testutilsPin "lol.hub:testutils:${project.testutils_version}@properties"
