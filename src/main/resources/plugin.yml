@@ -3,7 +3,7 @@ version: '@mod_version@'
 api-version: '@minecraft_version@'
 main: 'lol.hub.autosort.Plugin'
 description: 'Tidy up them containers'
-website: 'https://github.com/nothub/AutoSort'
+website: 'https://github.com/nothub/autosort'
 authors: [ 'nothub' ]
 contributors: [ ]
 
