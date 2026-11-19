@@ -2,8 +2,8 @@
 
 Paper plugin. Tidy up them containers.
 
-[Modrinth](https://modrinth.com/mod/autosort)  
-[GitHub](https://github.com/nothub/autosort/releases)
+[![GitHub](https://img.shields.io/github/stars/nothub/autosort)](https://github.com/nothub/autosort)
+[![Modrinth](https://img.shields.io/modrinth/dt/FXR5nhTz?label=Modrinth)](https://modrinth.com/mod/autosort)
 
 ---
 
